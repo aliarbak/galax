@@ -12,9 +12,12 @@ import {Resource} from "./Resource.sol";
 
 contract Store is Ownable {
     enum StoreType {
+        NONE,
         RESTAURANT,
-        MARKET,
-        VEHICLE_PRODUCER
+        GROCERY_STORE,
+        FMCG_MANUFACTURER,
+        VEHICLE_MANUFACTURER,
+        VEHICLE_GALLERY
     }
 
     uint256 public id;
@@ -42,6 +45,8 @@ contract Store is Ownable {
         address payable characterAddress,
         uint256 reward
     ) external onlyPlanet {
+        require(resource.storeType() == uint(storeType), "Invalid resource store type for production");
+
         Resource.ResourceCost[] memory costs = resource
             .calculateProductionResourceCosts(amount);
 

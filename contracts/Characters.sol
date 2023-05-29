@@ -14,11 +14,11 @@ contract Characters is ReentrancyGuard {
 
     struct Character {
         uint256 id;
+        uint256 planetId;
         uint256 nonce;
         uint256 hunger;
         uint256 thirstiness;
         uint256 energy;
-        uint256 planetId;
         uint256 arrivalTimeToPlanet;
     }
 
@@ -30,7 +30,9 @@ contract Characters is ReentrancyGuard {
 
     enum PredefinedSkillType {
         NONE,
-        COOKING
+        COOKING,
+        MANUFACTURING,
+        MECHANIC
     }
 
     enum SignatureType {

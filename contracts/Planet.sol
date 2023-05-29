@@ -14,16 +14,19 @@ contract Planet is Ownable, ReentrancyGuard {
     uint256 public characterCount = 0;
     uint256 public storeCount = 0;
     string public name;
+    string public baseUri;
 
     Galaxy public galaxy;
     Characters public characters;
 
     constructor(
         uint256 _id,
+        string memory _baseUri,
         string memory _name,
         Characters _characters
     ) payable {
         id = _id;
+        baseUri = _baseUri;
         name = _name;
         galaxy = Galaxy(msg.sender);
         characters = _characters;
@@ -112,6 +115,10 @@ contract Planet is Ownable, ReentrancyGuard {
 
     function characterLeft() external onlyCharacters {
         characterCount--;
+    }
+
+    function setBaseUri(string memory _baseUri) external onlyOwner {
+        baseUri = _baseUri;
     }
 
     modifier onlyGalaxy() {

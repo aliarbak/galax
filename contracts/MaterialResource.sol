@@ -18,6 +18,7 @@ contract MaterialResource is Resource {
         string memory _name,
         string memory _symbol,
         uint256 _maxProductionLimit,
+        uint _storeType,
         ResourceCost[] memory _resourceCosts,
         MotiveCost memory _motiveCost,
         RequiredSkill memory _requiredSkill
@@ -27,6 +28,7 @@ contract MaterialResource is Resource {
             _name,
             _symbol,
             _maxProductionLimit,
+            _storeType,
             _resourceCosts,
             _motiveCost,
             _requiredSkill
@@ -55,7 +57,7 @@ contract MaterialResource is Resource {
             hunger,
             thirstiness,
             energy,
-            requiredSkill.skillRate * amount,
+            requiredSkill.skillFactor * amount,
             requiredSkill.skillType
         );
     }

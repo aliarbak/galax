@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.15;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
@@ -11,8 +10,11 @@ import {Characters} from "./Characters.sol";
 import {Resource} from "./Resource.sol";
 import {Store} from "./Store.sol";
 import {RawResource} from "./RawResource.sol";
+import {Item} from "./Item.sol";
+import {FoodItem} from "./FoodItem.sol";
+import {MaterialResource} from "./MaterialResource.sol";
 
-contract Galaxy is Ownable, ReentrancyGuard {
+contract Galaxy is ReentrancyGuard {
     struct GalaxyCosts {
         uint256 planetCreation;
     }
@@ -21,6 +23,7 @@ contract Galaxy is Ownable, ReentrancyGuard {
     Counters.Counter private _planetIds;
     Counters.Counter private _storeIds;
     Counters.Counter private _resourceIds;
+    Counters.Counter private _itemIds;
 
     mapping(uint256 => Planet) public planet;
     mapping(address => uint256) public addressToPlanetId;
@@ -29,6 +32,9 @@ contract Galaxy is Ownable, ReentrancyGuard {
     mapping(uint256 => Resource) public resource;
     mapping(address => uint256) public addressToResourceId;
     Resource[] public resources;
+
+    mapping(uint256 => Item) public item;
+    mapping(address => uint256) public addressToItemId;
 
     mapping(uint256 => Store) public store;
     mapping(address => uint256) public addressToStoreId;
@@ -39,18 +45,19 @@ contract Galaxy is Ownable, ReentrancyGuard {
     string public name;
 
     constructor(
-        string memory _name,
-        string memory rawResourceName,
-        string memory rawResourceSymbol
+        string memory _name
     ) {
         name = _name;
         characters = new Characters();
         costs = GalaxyCosts(1000000); // TO DO
-        _createRawResource(rawResourceName, rawResourceSymbol);
+
+        _createInitialResources();
+        _createInitialItems();
     }
 
     function createPlanet(
         string calldata planetName,
+        string calldata baseUri,
         uint256 _value,
         bytes32 _salt
     ) external payable nonReentrant returns (address planetAddress) {
@@ -64,6 +71,7 @@ contract Galaxy is Ownable, ReentrancyGuard {
 
         Planet _planet = (new Planet){value: _value, salt: _salt}(
             id,
+            baseUri,
             planetName,
             characters
         );
@@ -134,6 +142,57 @@ contract Galaxy is Ownable, ReentrancyGuard {
         return 100000; // TO DO
     }
 
+    function _createInitialResources() private {
+        _createRawResource("Galax Raw Resource", "GXRR");
+
+        Resource.ResourceCost[]
+            memory foodResourceCosts = new Resource.ResourceCost[](1);
+        foodResourceCosts[0] = Resource.ResourceCost(1, 100);
+        _createMaterialResource(
+            "Galax Foods and Drinks Resource",
+            "GFDR",
+            100,
+            Store.StoreType.RESTAURANT,
+            foodResourceCosts,
+            Resource.MotiveCost(1 ether, 1 ether, 1 ether),
+            Resource.RequiredSkill(1, Characters.PredefinedSkillType.COOKING)
+        );
+
+         Resource.ResourceCost[]
+            memory fmcgResourceCosts = new Resource.ResourceCost[](1);
+        fmcgResourceCosts[0] = Resource.ResourceCost(1, 100);
+        _createMaterialResource(
+            "Galax FMCG Resource",
+            "GXFR",
+            100,
+            Store.StoreType.FMCG_MANUFACTURER,
+            fmcgResourceCosts,
+            Resource.MotiveCost(1 ether, 1 ether, 1 ether),
+            Resource.RequiredSkill(1, Characters.PredefinedSkillType.MANUFACTURING)
+        );
+
+        Resource.ResourceCost[]
+            memory vehicleResourceCosts = new Resource.ResourceCost[](1);
+        vehicleResourceCosts[0] = Resource.ResourceCost(1, 100);
+        _createMaterialResource(
+            "Galax Vehicle Resource",
+            "GXVR",
+            100,
+            Store.StoreType.VEHICLE_MANUFACTURER,
+            vehicleResourceCosts,
+            Resource.MotiveCost(1 ether, 1 ether, 1 ether),
+            Resource.RequiredSkill(1, Characters.PredefinedSkillType.MECHANIC)
+        );
+    }   
+
+    function _createInitialItems() private {
+        _itemIds.increment();
+        uint256 foodItemId = _itemIds.current();
+        FoodItem foodItem = new FoodItem(foodItemId, 10, "Galax Food Item", "GXFI", 2, 10); // TO DO
+        item[foodItemId] = foodItem;
+        addressToItemId[address(foodItem)] = foodItemId;
+    }
+
     function _createRawResource(
         string memory resourceName,
         string memory resourceSymbol
@@ -144,6 +203,33 @@ contract Galaxy is Ownable, ReentrancyGuard {
         resource[resourceId] = rawResource;
         addressToResourceId[address(rawResource)] = resourceId;
         resources.push(rawResource);
+    }
+
+    function _createMaterialResource(
+        string memory resourceName,
+        string memory resourceSymbol,
+        uint256 maxProductionLimit,
+        Store.StoreType storeType,
+        Resource.ResourceCost[] memory resourceCosts,
+        Resource.MotiveCost memory motiveCost,
+        Resource.RequiredSkill memory requiredSkill
+    ) private {
+        _resourceIds.increment();
+        uint256 resourceId = _resourceIds.current();
+        MaterialResource _resource = new MaterialResource(
+            resourceId,
+            resourceName,
+            resourceSymbol,
+            maxProductionLimit,
+            uint(storeType),
+            resourceCosts,
+            motiveCost,
+            requiredSkill
+        );
+
+        resource[resourceId] = _resource;
+        addressToResourceId[address(_resource)] = resourceId;
+        resources.push(_resource);
     }
 
     // Min orbit  = 1  max orbit = 100.000

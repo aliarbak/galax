@@ -18,13 +18,13 @@ abstract contract Resource is ERC20, ReentrancyGuard {
     }
 
     struct MotiveCost {
-        uint16 hunger;
-        uint16 thirstiness;
-        uint16 energy;
+        uint256 hunger;
+        uint256 thirstiness;
+        uint256 energy;
     }
 
     struct RequiredSkill {
-        uint256 skillRate;
+        uint256 skillFactor;
         Characters.PredefinedSkillType skillType;
     }
 
@@ -46,6 +46,7 @@ abstract contract Resource is ERC20, ReentrancyGuard {
 
     uint256 public id;
     uint256 public maxProductionLimit;
+    uint public storeType;
     StakedTransfer[] public stakedTransfers;
     ResourceCost[] public resourceCosts;
     MotiveCost public motiveCost;
@@ -57,12 +58,14 @@ abstract contract Resource is ERC20, ReentrancyGuard {
         string memory _name,
         string memory _symbol,
         uint256 _maxProductionLimit,
+        uint _storeType,
         ResourceCost[] memory _resourceCosts,
         MotiveCost memory _motiveCost,
         RequiredSkill memory _requiredSkill
     ) ERC20(_name, _symbol) {
         id = _id;
         galaxy = Galaxy(msg.sender);
+        storeType = _storeType;
         motiveCost = _motiveCost;
         requiredSkill = _requiredSkill;
         maxProductionLimit = _maxProductionLimit;
@@ -135,6 +138,10 @@ abstract contract Resource is ERC20, ReentrancyGuard {
 
     function burn(uint256 amount) external {
         _burn(msg.sender, amount);
+    }
+
+    function burnByItem(address from, uint256 amount) external onlyItem {
+        _burn(from, amount);
     }
 
     function tick() external nonReentrant {
@@ -245,6 +252,11 @@ abstract contract Resource is ERC20, ReentrancyGuard {
     modifier onlyPlanet() {
         uint256 planetId = galaxy.addressToPlanetId(msg.sender);
         require(planetId > 0, "Resource: caller is not planet");
+        _;
+    }
+
+    modifier onlyItem() {
+        require(galaxy.addressToItemId(msg.sender) > 0, "Resource: caller is not item");
         _;
     }
 

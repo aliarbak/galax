@@ -25,9 +25,10 @@ contract RawResource is Resource {
             _name,
             _symbol,
             100 ether,
+            uint(Store.StoreType.NONE),
             new ResourceCost[](0),
             MotiveCost(1, 1, 1),
-            RequiredSkill(0, Characters.PredefinedSkillType.NONE)
+            RequiredSkill(0, Characters.PredefinedSkillType.NONE)    
         )
     {}
 
@@ -50,7 +51,7 @@ contract RawResource is Resource {
             hunger,
             thirstiness,
             energy,
-            requiredSkill.skillRate * amount,
+            requiredSkill.skillFactor * amount,
             requiredSkill.skillType
         );
     }
