@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.15;
 
-import {Characters} from "./Characters.sol";
+import {Characters} from "./../Characters.sol";
 import {Item} from "./Item.sol";
 
 abstract contract ConsumableItem is Item {
@@ -43,7 +43,7 @@ abstract contract ConsumableItem is Item {
         uint256 fromTokenId,
         uint256 toTokenId,
         uint256 planetId,
-        uint256 storeId,
+        uint256 businessId,
         uint256 typeIdentifier,
         uint256 expiryDate,
         uint256 hungerEffect,
@@ -54,7 +54,7 @@ abstract contract ConsumableItem is Item {
             _setProps(
                 tokenId,
                 planetId,
-                storeId,
+                businessId,
                 typeIdentifier,
                 expiryDate,
                 hungerEffect,
@@ -67,7 +67,7 @@ abstract contract ConsumableItem is Item {
     function _setProps(
         uint256 tokenId,
         uint256 planetId,
-        uint256 storeId,
+        uint256 businessId,
         uint256 typeIdentifier,
         uint256 expiryDate,
         uint256 hungerEffect,
@@ -78,7 +78,7 @@ abstract contract ConsumableItem is Item {
             planetId
         );
         props[tokenId][uint(ConsumableItemPropIndex.STORE_ID)] = bytes32(
-            storeId
+            businessId
         );
         props[tokenId][uint(ConsumableItemPropIndex.TYPE_IDENTIFIER)] = bytes32(
             typeIdentifier

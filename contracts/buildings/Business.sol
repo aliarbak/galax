@@ -5,13 +5,13 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
-import {Planet} from "./Planet.sol";
-import {Galaxy} from "./Galaxy.sol";
-import {Characters} from "./Characters.sol";
-import {Resource} from "./Resource.sol";
+import {Planet} from "../Planet.sol";
+import {Galaxy} from "../Galaxy.sol";
+import {Characters} from "../Characters.sol";
+import {Resource} from "../resources/Resource.sol";
 
-contract Store is Ownable {
-    enum StoreType {
+contract Business is Ownable {
+    enum PredefinedBusinessType {
         NONE,
         RESTAURANT,
         GROCERY_STORE,
@@ -23,20 +23,20 @@ contract Store is Ownable {
     uint256 public id;
     uint256 public planetId;
     string public name;
-    StoreType public storeType;
+    uint256 public businessType;
     Galaxy public galaxy;
 
     constructor(
         uint256 _id,
         string memory _name,
         uint256 _planetId,
-        StoreType _storeType
+        uint256 _businessType
     ) {
         id = _id;
         name = _name;
         planetId = _planetId;
         galaxy = Galaxy(msg.sender);
-        storeType = _storeType;
+        businessType = _businessType;
     }
 
     function produce(
@@ -45,7 +45,8 @@ contract Store is Ownable {
         address payable characterAddress,
         uint256 reward
     ) external onlyPlanet {
-        require(resource.storeType() == uint(storeType), "Invalid resource store type for production");
+        require(characterAddress != address(0), "Invalid character address");
+        require(resource.businessType() == uint(businessType), "Invalid resource business type for production");
 
         Resource.ResourceCost[] memory costs = resource
             .calculateProductionResourceCosts(amount);
@@ -60,7 +61,7 @@ contract Store is Ownable {
             require(sent, "Failed to send reward");
         }
 
-        resource.produceForStore(amount);
+        resource.produceForBusiness(amount);
     }
 
     modifier onlyPlanet() {

@@ -6,13 +6,13 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 import {Galaxy} from "./Galaxy.sol";
 import {Characters} from "./Characters.sol";
-import {Store} from "./Store.sol";
-import {Resource} from "./Resource.sol";
+import {Business} from "./buildings/Business.sol";
+import {Resource} from "./resources/Resource.sol";
 
 contract Planet is Ownable, ReentrancyGuard {
     uint256 public id;
     uint256 public characterCount = 0;
-    uint256 public storeCount = 0;
+    uint256 public businessCount = 0;
     string public name;
     string public baseUri;
 
@@ -65,8 +65,8 @@ contract Planet is Ownable, ReentrancyGuard {
         }
     }
 
-    function produceResourceOnStore(
-        uint256 storeId,
+    function produceResourceOnBusiness(
+        uint256 businessId,
         uint256 resourceId,
         uint256 amount,
         address payable characterAddress,
@@ -84,7 +84,7 @@ contract Planet is Ownable, ReentrancyGuard {
             Characters.MotiveEffect(cost.hunger, cost.thirstiness, cost.energy),
             signature
         );
-        galaxy.store(storeId).produce(
+        galaxy.business(businessId).produce(
             resource,
             amount,
             characterAddress,
@@ -92,13 +92,13 @@ contract Planet is Ownable, ReentrancyGuard {
         );
     }
 
-    function createStore(
+    function createBusiness(
         string memory _name,
-        Store.StoreType storeType,
+        uint256 businessType,
         address ownerAddress
-    ) external onlyOwner returns (Store store) {
-        store = galaxy.createStore(_name, storeType, ownerAddress);
-        storeCount++;
+    ) external payable onlyOwner returns (Business business) {
+        business = galaxy.createBusiness{value: msg.value}(_name, businessType, ownerAddress);
+        businessCount++;
     }
 
     function joinCharacter(

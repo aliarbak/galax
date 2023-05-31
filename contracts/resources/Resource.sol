@@ -6,10 +6,10 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
-import {Planet} from "./Planet.sol";
-import {Galaxy} from "./Galaxy.sol";
-import {Characters} from "./Characters.sol";
-import {Store} from "./Store.sol";
+import {Planet} from "./../Planet.sol";
+import {Galaxy} from "./../Galaxy.sol";
+import {Characters} from "./../Characters.sol";
+import {Business} from "./../buildings/Business.sol";
 
 abstract contract Resource is ERC20, ReentrancyGuard {
     struct ResourceCost {
@@ -25,7 +25,7 @@ abstract contract Resource is ERC20, ReentrancyGuard {
 
     struct RequiredSkill {
         uint256 skillFactor;
-        Characters.PredefinedSkillType skillType;
+        uint256 skillType;
     }
 
     struct ProductionCost {
@@ -34,7 +34,7 @@ abstract contract Resource is ERC20, ReentrancyGuard {
         uint256 energy;
         uint256 price;
         uint256 skillExp;
-        Characters.PredefinedSkillType skillType;
+        uint256 skillType;
     }
 
     struct StakedTransfer {
@@ -46,7 +46,7 @@ abstract contract Resource is ERC20, ReentrancyGuard {
 
     uint256 public id;
     uint256 public maxProductionLimit;
-    uint public storeType;
+    uint public businessType;
     StakedTransfer[] public stakedTransfers;
     ResourceCost[] public resourceCosts;
     MotiveCost public motiveCost;
@@ -58,14 +58,13 @@ abstract contract Resource is ERC20, ReentrancyGuard {
         string memory _name,
         string memory _symbol,
         uint256 _maxProductionLimit,
-        uint _storeType,
+        uint _businessType,
         ResourceCost[] memory _resourceCosts,
         MotiveCost memory _motiveCost,
         RequiredSkill memory _requiredSkill
     ) ERC20(_name, _symbol) {
         id = _id;
-        galaxy = Galaxy(msg.sender);
-        storeType = _storeType;
+        businessType = _businessType;
         motiveCost = _motiveCost;
         requiredSkill = _requiredSkill;
         maxProductionLimit = _maxProductionLimit;
@@ -74,8 +73,8 @@ abstract contract Resource is ERC20, ReentrancyGuard {
         }
     }
 
-    function produceForStore(uint256 amount) external virtual {
-        revert("can not produce for store");
+    function produceForBusiness(uint256 amount) external virtual {
+        revert("can not produce for business");
     }
 
     function produceForPlanet(uint256 amount) external virtual {
@@ -110,9 +109,9 @@ abstract contract Resource is ERC20, ReentrancyGuard {
             return _transferFromPlanet(fromPlanetId, from, to, amount);
         }
 
-        uint256 fromStoreId = galaxy.addressToStoreId(from);
-        if (fromStoreId > 0) {
-            return _transferFromStore(fromPlanetId, from, to, amount);
+        uint256 fromBusinessId = galaxy.addressToBusinessId(from);
+        if (fromBusinessId > 0) {
+            return _transferFromBusiness(fromPlanetId, from, to, amount);
         }
 
         revert("Unknown receiver");
@@ -128,9 +127,9 @@ abstract contract Resource is ERC20, ReentrancyGuard {
             return _transferFromPlanet(fromPlanetId, from, to, amount);
         }
 
-        uint256 fromStoreId = galaxy.addressToStoreId(from);
-        if (fromStoreId > 0) {
-            return _transferFromStore(fromPlanetId, from, to, amount);
+        uint256 fromBusinessId = galaxy.addressToBusinessId(from);
+        if (fromBusinessId > 0) {
+            return _transferFromBusiness(fromPlanetId, from, to, amount);
         }
 
         revert("Unknown receiver");
@@ -156,6 +155,11 @@ abstract contract Resource is ERC20, ReentrancyGuard {
             stakedTransfers.pop();
             _transfer(address(this), to, amount);
         }
+    }
+
+    function setGalaxy(Galaxy _galaxy) external {
+        require(address(galaxy) == address(0), "can not set galaxy");
+        galaxy = _galaxy;
     }
 
     function _calculateProductionMotiveCosts(
@@ -201,10 +205,10 @@ abstract contract Resource is ERC20, ReentrancyGuard {
             return true;
         }
 
-        uint256 toStoreId = galaxy.addressToStoreId(to);
-        if (toStoreId > 0) {
-            Store store = Store(to);
-            require(store.planetId() == fromPlanetId, "Invalid store planet");
+        uint256 toBusinessId = galaxy.addressToBusinessId(to);
+        if (toBusinessId > 0) {
+            Business business = Business(to);
+            require(business.planetId() == fromPlanetId, "Invalid business planet");
             _transfer(from, to, amount);
             return true;
         }
@@ -212,26 +216,26 @@ abstract contract Resource is ERC20, ReentrancyGuard {
         revert("Unknown receiver");
     }
 
-    function _transferFromStore(
-        uint256 fromStoreId,
+    function _transferFromBusiness(
+        uint256 fromBusinessId,
         address from,
         address to,
         uint256 amount
     ) internal virtual returns (bool) {
-        Store store = galaxy.store(fromStoreId);
+        Business business = galaxy.business(fromBusinessId);
         uint256 toPlanetId = galaxy.addressToPlanetId(to);
         if (toPlanetId > 0) {
-            require(store.planetId() == toPlanetId, "Invalid receiver planet");
+            require(business.planetId() == toPlanetId, "Invalid receiver planet");
             _transfer(from, to, amount);
             return true;
         }
 
-        uint256 toStoreId = galaxy.addressToStoreId(to);
-        if (toStoreId > 0) {
-            Store toStore = Store(to);
+        uint256 toBusinessId = galaxy.addressToBusinessId(to);
+        if (toBusinessId > 0) {
+            Business toBusiness = Business(to);
             require(
-                store.planetId() == toStore.planetId(),
-                "Invalid receiver store"
+                business.planetId() == toBusiness.planetId(),
+                "Invalid receiver business"
             );
             _transfer(from, to, amount);
             return true;

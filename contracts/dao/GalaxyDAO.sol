@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.15;
 
-import {Resource} from "./Resource.sol";
+import {Resource} from "../resources/Resource.sol";
 
 abstract contract GalaxyDAO {
     enum ProposalType {

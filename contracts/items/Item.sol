@@ -5,10 +5,10 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 import "erc721a/contracts/ERC721A.sol";
-import {Galaxy} from "./Galaxy.sol";
-import {Characters} from "./Characters.sol";
-import {Store} from "./Store.sol";
-import {Planet} from "./Planet.sol";
+import {Galaxy} from "./../Galaxy.sol";
+import {Characters} from "./../Characters.sol";
+import {Business} from "./../buildings/Business.sol";
+import {Planet} from "./../Planet.sol";
 
 abstract contract Item is ERC721A, ReentrancyGuard {
     using ECDSA for bytes32;
@@ -20,7 +20,7 @@ abstract contract Item is ERC721A, ReentrancyGuard {
 
     struct SellInput {
         uint8 planetCommissionRate;
-        uint256 storeId;
+        uint256 businessId;
         uint256 nonce;
         uint256 quantity;
         uint256 price;
@@ -29,14 +29,14 @@ abstract contract Item is ERC721A, ReentrancyGuard {
     }
 
     struct ItemMintInput {
-        Store store;
+        Business business;
         uint256 planetId;
-        uint256 storeId;
+        uint256 businessId;
         uint256 quantity;
         bytes32[] parameters;
     }
 
-    uint public storeType;
+    uint public businessType;
     uint256 public id;
     uint8 public galaxyCommissionRate;
     Galaxy public galaxy;
@@ -48,10 +48,10 @@ abstract contract Item is ERC721A, ReentrancyGuard {
         uint8 _galaxyCommissionRate,
         string memory _name,
         string memory _symbol,
-        uint _storeType
+        uint _businessType
     ) ERC721A(_name, _symbol) {
         id = _id;
-        storeType = _storeType;
+        businessType = _businessType;
         galaxyCommissionRate = _galaxyCommissionRate;
     }
 
@@ -67,12 +67,12 @@ abstract contract Item is ERC721A, ReentrancyGuard {
         uint totalPrice = request.price * request.quantity;
         require(msg.value >= totalPrice, "Item: insufficent price value");
 
-        require(nonce[request.nonce] == false, "Item: nonce already used");
+        require(!nonce[request.nonce], "Item: nonce already used");
         nonce[request.nonce] = true;
 
         require(characterId > 0, "Item: caller is not a character");
-        Store store = galaxy.store(request.storeId);
-        require(store.planetId() == planetId, "Item: invalid store");
+        Business business = galaxy.business(request.businessId);
+        require(business.planetId() == planetId, "Item: invalid business");
 
         Planet planet = galaxy.planet(planetId);
         _verifySignature(planet.owner(), request);
@@ -82,11 +82,11 @@ abstract contract Item is ERC721A, ReentrancyGuard {
             "Item: Invalid commission rates"
         );
 
-        uint256 storeEarning = totalPrice;
+        uint256 businessEarning = totalPrice;
         if (galaxyCommissionRate > 0) {
             uint256 galaxyCommission = (totalPrice / 100) *
                 galaxyCommissionRate;
-            storeEarning -= galaxyCommission;
+            businessEarning -= galaxyCommission;
             bool sent = payable(address(galaxy)).send(galaxyCommission);
             require(sent, "Item: galaxy commission payment failed");
         }
@@ -94,21 +94,21 @@ abstract contract Item is ERC721A, ReentrancyGuard {
         if (request.planetCommissionRate > 0) {
             uint256 planetCommission = (totalPrice / 100) *
                 request.planetCommissionRate;
-            storeEarning -= planetCommission;
+            businessEarning -= planetCommission;
             bool sent = payable(address(planet)).send(planetCommission);
             require(sent, "Item: planet commission payment failed");
         }
 
-        if (storeEarning > 0) {
-            bool sent = payable(address(store)).send(storeEarning);
-            require(sent, "Item: store payment failed");
+        if (businessEarning > 0) {
+            bool sent = payable(address(business)).send(businessEarning);
+            require(sent, "Item: business payment failed");
         }
 
         _mint(
             ItemMintInput(
-                store,
+                business,
                 planetId,
-                request.storeId,
+                request.businessId,
                 request.quantity,
                 request.parameters
             )
@@ -124,7 +124,7 @@ abstract contract Item is ERC721A, ReentrancyGuard {
         if (!_exists(tokenId)) revert URIQueryForNonexistentToken();
 
         uint256 planetId = _getPropUInt256(tokenId, PropIndex.PLANET_ID);
-        uint256 storeId = _getPropUInt256(tokenId, PropIndex.STORE_ID);
+        uint256 businessId = _getPropUInt256(tokenId, PropIndex.STORE_ID);
         uint256 typeIdentifier = _getPropUInt256(
             tokenId,
             PropIndex.TYPE_IDENTIFIER
@@ -139,11 +139,16 @@ abstract contract Item is ERC721A, ReentrancyGuard {
                         _toString(tokenId),
                         "?typeIdentifier=",
                         _toString(typeIdentifier),
-                        "&storeId=",
-                        _toString(storeId)
+                        "&businessId=",
+                        _toString(businessId)
                     )
                 )
                 : "";
+    }
+
+    function setGalaxy(Galaxy _galaxy) external {
+        require(address(galaxy) == address(0), "can not set galaxy");
+        galaxy = _galaxy;
     }
 
     function _getProp(
@@ -187,7 +192,7 @@ abstract contract Item is ERC721A, ReentrancyGuard {
                 address(this),
                 block.chainid,
                 request.nonce,
-                request.storeId,
+                request.businessId,
                 request.price,
                 request.quantity,
                 request.parameters

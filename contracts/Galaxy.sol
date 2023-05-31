@@ -7,12 +7,12 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import {Planet} from "./Planet.sol";
 import {Galaxy} from "./Galaxy.sol";
 import {Characters} from "./Characters.sol";
-import {Resource} from "./Resource.sol";
-import {Store} from "./Store.sol";
-import {RawResource} from "./RawResource.sol";
-import {Item} from "./Item.sol";
-import {FoodItem} from "./FoodItem.sol";
-import {MaterialResource} from "./MaterialResource.sol";
+import {Resource} from "./resources/Resource.sol";
+import {Business} from "./buildings/Business.sol";
+import {RawResource} from "./resources/RawResource.sol";
+import {Item} from "./items/Item.sol";
+import {Food} from "./items/Food.sol";
+import {MaterialResource} from "./resources/MaterialResource.sol";
 
 contract Galaxy is ReentrancyGuard {
     struct GalaxyCosts {
@@ -21,9 +21,10 @@ contract Galaxy is ReentrancyGuard {
 
     using Counters for Counters.Counter;
     Counters.Counter private _planetIds;
-    Counters.Counter private _storeIds;
-    Counters.Counter private _resourceIds;
-    Counters.Counter private _itemIds;
+    Counters.Counter private _businessIds;
+    uint256 private _maxBusinessType = uint(Business.PredefinedBusinessType.VEHICLE_GALLERY);
+    uint256 private _maxResourceId = 0;
+    uint256 private _maxItemId = 0;
 
     mapping(uint256 => Planet) public planet;
     mapping(address => uint256) public addressToPlanetId;
@@ -31,13 +32,12 @@ contract Galaxy is ReentrancyGuard {
 
     mapping(uint256 => Resource) public resource;
     mapping(address => uint256) public addressToResourceId;
-    Resource[] public resources;
 
     mapping(uint256 => Item) public item;
     mapping(address => uint256) public addressToItemId;
 
-    mapping(uint256 => Store) public store;
-    mapping(address => uint256) public addressToStoreId;
+    mapping(uint256 => Business) public business;
+    mapping(address => uint256) public addressToBusinessId;
 
     RawResource public rawResource;
     Characters public characters;
@@ -45,19 +45,22 @@ contract Galaxy is ReentrancyGuard {
     string public name;
 
     constructor(
-        string memory _name
+        string memory _name,
+        GalaxyCosts memory _costs,
+        address[] memory resourceAddresses,
+        address[] memory itemAddresses
     ) {
         name = _name;
         characters = new Characters();
-        costs = GalaxyCosts(1000000); // TO DO
+        costs = _costs;
 
-        _createInitialResources();
-        _createInitialItems();
+        _addResources(resourceAddresses);
+        _addItems(itemAddresses);
     }
 
     function createPlanet(
-        string calldata planetName,
-        string calldata baseUri,
+        string memory planetName,
+        string memory baseUri,
         uint256 _value,
         bytes32 _salt
     ) external payable nonReentrant returns (address planetAddress) {
@@ -75,6 +78,7 @@ contract Galaxy is ReentrancyGuard {
             planetName,
             characters
         );
+        _planet.transferOwnership(msg.sender);
         planetAddress = address(_planet);
 
         planet[id] = _planet;
@@ -84,25 +88,26 @@ contract Galaxy is ReentrancyGuard {
         emit PlanetCreated(id, planetAddress);
     }
 
-    function createStore(
+    function createBusiness(
         string calldata _name,
-        Store.StoreType storeType,
+        uint256 businessType,
         address ownerAddress
-    ) external payable nonReentrant returns (Store _store) {
+    ) external payable nonReentrant returns (Business _business) {
         uint256 planetId = addressToPlanetId[msg.sender];
         require(planetId > 0, "Caller is not a planet");
 
-        uint256 storeCreationCost = calculateStoreCreationCost(planetId);
-        require(msg.value >= storeCreationCost, "Insufficent payment");
+        uint256 businessCreationCost = calculateBusinessCreationCost(planetId);
+        require(msg.value >= businessCreationCost, "Insufficent payment");
+        require(uint(businessType) < _maxBusinessType, "Invalid business type");
 
-        _storeIds.increment();
-        uint256 storeId = _storeIds.current();
+        _businessIds.increment();
+        uint256 businessId = _businessIds.current();
 
-        _store = new Store(storeId, _name, planetId, storeType);
-        _store.transferOwnership(ownerAddress);
+        _business = new Business(businessId, _name, planetId, businessType);
+        _business.transferOwnership(ownerAddress);
 
-        store[storeId] = _store;
-        addressToStoreId[address(_store)] = storeId;
+        business[businessId] = _business;
+        addressToBusinessId[address(_business)] = businessId;
     }
 
     function calculateOrbitDiff(
@@ -136,100 +141,63 @@ contract Galaxy is ReentrancyGuard {
         return ((block.timestamp + movingTimeInSec) / 1000) * 1000;
     }
 
-    function calculateStoreCreationCost(
+    function calculateBusinessCreationCost(
         uint256 planetId
     ) public pure returns (uint256) {
         return 100000; // TO DO
     }
 
-    function _createInitialResources() private {
-        _createRawResource("Galax Raw Resource", "GXRR");
-
-        Resource.ResourceCost[]
-            memory foodResourceCosts = new Resource.ResourceCost[](1);
-        foodResourceCosts[0] = Resource.ResourceCost(1, 100);
-        _createMaterialResource(
-            "Galax Foods and Drinks Resource",
-            "GFDR",
-            100,
-            Store.StoreType.RESTAURANT,
-            foodResourceCosts,
-            Resource.MotiveCost(1 ether, 1 ether, 1 ether),
-            Resource.RequiredSkill(1, Characters.PredefinedSkillType.COOKING)
-        );
-
-         Resource.ResourceCost[]
-            memory fmcgResourceCosts = new Resource.ResourceCost[](1);
-        fmcgResourceCosts[0] = Resource.ResourceCost(1, 100);
-        _createMaterialResource(
-            "Galax FMCG Resource",
-            "GXFR",
-            100,
-            Store.StoreType.FMCG_MANUFACTURER,
-            fmcgResourceCosts,
-            Resource.MotiveCost(1 ether, 1 ether, 1 ether),
-            Resource.RequiredSkill(1, Characters.PredefinedSkillType.MANUFACTURING)
-        );
-
-        Resource.ResourceCost[]
-            memory vehicleResourceCosts = new Resource.ResourceCost[](1);
-        vehicleResourceCosts[0] = Resource.ResourceCost(1, 100);
-        _createMaterialResource(
-            "Galax Vehicle Resource",
-            "GXVR",
-            100,
-            Store.StoreType.VEHICLE_MANUFACTURER,
-            vehicleResourceCosts,
-            Resource.MotiveCost(1 ether, 1 ether, 1 ether),
-            Resource.RequiredSkill(1, Characters.PredefinedSkillType.MECHANIC)
-        );
-    }   
-
-    function _createInitialItems() private {
-        _itemIds.increment();
-        uint256 foodItemId = _itemIds.current();
-        FoodItem foodItem = new FoodItem(foodItemId, 10, "Galax Food Item", "GXFI", 2, 10); // TO DO
-        item[foodItemId] = foodItem;
-        addressToItemId[address(foodItem)] = foodItemId;
+    function _addItems(address[] memory itemAddressess) private {
+        for (uint256 i = 0; i < itemAddressess.length; i++) {
+            _addItem(itemAddressess[i]);
+        }
     }
 
-    function _createRawResource(
-        string memory resourceName,
-        string memory resourceSymbol
-    ) private {
-        _resourceIds.increment();
-        uint256 resourceId = _resourceIds.current();
-        rawResource = new RawResource(resourceId, resourceName, resourceSymbol);
-        resource[resourceId] = rawResource;
-        addressToResourceId[address(rawResource)] = resourceId;
-        resources.push(rawResource);
-    }
-
-    function _createMaterialResource(
-        string memory resourceName,
-        string memory resourceSymbol,
-        uint256 maxProductionLimit,
-        Store.StoreType storeType,
-        Resource.ResourceCost[] memory resourceCosts,
-        Resource.MotiveCost memory motiveCost,
-        Resource.RequiredSkill memory requiredSkill
-    ) private {
-        _resourceIds.increment();
-        uint256 resourceId = _resourceIds.current();
-        MaterialResource _resource = new MaterialResource(
-            resourceId,
-            resourceName,
-            resourceSymbol,
-            maxProductionLimit,
-            uint(storeType),
-            resourceCosts,
-            motiveCost,
-            requiredSkill
+    function _addItem(address itemAddress) private {
+        Item _item = Item(itemAddress);
+        address itemGalaxyAddress = address(_item.galaxy());
+        require(
+            itemGalaxyAddress == address(this) ||
+                itemGalaxyAddress == address(0),
+            "Galaxy: invalid item galaxy address"
         );
 
+        uint256 itemId = _item.id();
+        require(itemId == _maxItemId + 1, "Invalid item id");
+
+        addressToItemId[itemAddress] = itemId;
+        item[itemId] = _item;
+        _maxItemId = itemId;
+
+        if (itemGalaxyAddress == address(0)) {
+            _item.setGalaxy(this);
+        }
+    }
+
+    function _addResources(address[] memory resourceAddresses) private {
+        for (uint256 i = 0; i < resourceAddresses.length; i++) {
+            _addResource(resourceAddresses[i]);
+        }
+    }
+
+    function _addResource(address resourceAddress) private {
+        Resource _resource = Resource(resourceAddress);
+        address resourceGalaxyAddress = address(_resource.galaxy());
+        require(
+            resourceGalaxyAddress == address(this) ||
+                resourceGalaxyAddress == address(0),
+            "Galaxy: invalid resource galaxy address"
+        );
+        if (resourceGalaxyAddress == address(0)) {
+            _resource.setGalaxy(this);
+        }
+
+        uint256 resourceId = _resource.id();
+        require(resourceId == _maxResourceId + 1, "Invalid resource id");
+
+        addressToResourceId[resourceAddress] = resourceId;
         resource[resourceId] = _resource;
-        addressToResourceId[address(_resource)] = resourceId;
-        resources.push(_resource);
+        _maxResourceId = resourceId;    
     }
 
     // Min orbit  = 1  max orbit = 100.000
@@ -257,10 +225,10 @@ contract Galaxy is ReentrancyGuard {
 
     event PlanetCreated(uint256 id, address planetAddress);
 
-    event StoreCreated(
+    event BusinessCreated(
         uint256 id,
         uint256 planetId,
-        address storeAddress,
-        Store.StoreType storeType
+        address businessAddress,
+        uint256 businessType
     );
 }

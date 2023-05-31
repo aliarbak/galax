@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {Galaxy} from "./Galaxy.sol";
 import {Planet} from "./Planet.sol";
-import {Resource} from "./Resource.sol";
+import {Resource} from "./resources/Resource.sol";
 
 contract Characters is ReentrancyGuard {
     using Counters for Counters.Counter;
@@ -142,11 +142,11 @@ contract Characters is ReentrancyGuard {
         uint256 id = _ids.current();
         character[characterAddress] = Character(
             id,
+            0,
             1,
             DEFAULT_MOTIVE,
             DEFAULT_MOTIVE,
             DEFAULT_MOTIVE,
-            0,
             0
         );
         characterIdToAddress[id] = characterAddress;
@@ -167,15 +167,17 @@ contract Characters is ReentrancyGuard {
                 characterAddress,
                 planetId,
                 nonce,
-                signatureType
+                uint(signatureType)
             )
         );
+
         address signer = message.toEthSignedMessageHash().recover(signature);
         require(signer == characterAddress, "Invalid signature");
     }
 
     function _increaseNonce(address characterAddress) private {
-        character[characterAddress].nonce += block.timestamp / 1000;
+        uint256 nonce = character[characterAddress].nonce;
+        character[characterAddress].nonce = nonce + block.timestamp / 1000;
     }
 
     function _reduceMotives(
@@ -228,7 +230,10 @@ contract Characters is ReentrancyGuard {
         character[characterAddress].arrivalTimeToPlanet = arrivalTimeToPlanet;
 
         _increaseNonce(characterAddress);
-        galaxy.planet(fromPlanetId).characterLeft();
+        if (fromPlanetId > 0) {
+            galaxy.planet(fromPlanetId).characterLeft();
+        }
+        
         emit JoinedToPlanet(
             characterAddress,
             fromPlanetId,

@@ -6,39 +6,33 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
-import {Planet} from "./Planet.sol";
-import {Galaxy} from "./Galaxy.sol";
-import {Characters} from "./Characters.sol";
+import {Planet} from "./../Planet.sol";
+import {Galaxy} from "./../Galaxy.sol";
+import {Characters} from "./../Characters.sol";
 import {Resource} from "./Resource.sol";
-import {Store} from "./Store.sol";
+import {Business} from "./../buildings/Business.sol";
 
-contract MaterialResource is Resource {
+contract RawResource is Resource {
+    uint256 constant MAX_PRODUCTION_LIMIT = 1000;
+
     constructor(
         uint256 _id,
         string memory _name,
-        string memory _symbol,
-        uint256 _maxProductionLimit,
-        uint _storeType,
-        ResourceCost[] memory _resourceCosts,
-        MotiveCost memory _motiveCost,
-        RequiredSkill memory _requiredSkill
+        string memory _symbol
     )
         Resource(
             _id,
             _name,
             _symbol,
-            _maxProductionLimit,
-            _storeType,
-            _resourceCosts,
-            _motiveCost,
-            _requiredSkill
+            100 ether,
+            uint(Business.PredefinedBusinessType.NONE),
+            new ResourceCost[](0),
+            MotiveCost(1, 1, 1),
+            RequiredSkill(0, uint(Characters.PredefinedSkillType.NONE))
         )
     {}
 
-    function produceForStore(uint256 amount) external override {
-        uint256 storeId = galaxy.addressToStoreId(msg.sender);
-        require(storeId > 0, "Resource: caller is not store");
-
+    function produceForPlanet(uint256 amount) external override onlyPlanet {
         _mint(msg.sender, amount);
     }
 
@@ -53,7 +47,7 @@ contract MaterialResource is Resource {
             uint256 energy
         ) = _calculateProductionMotiveCosts(amount);
         cost = ProductionCost(
-            0,
+            amount / 1000,
             hunger,
             thirstiness,
             energy,
