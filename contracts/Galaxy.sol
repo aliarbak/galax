@@ -9,7 +9,6 @@ import {Galaxy} from "./Galaxy.sol";
 import {Characters} from "./Characters.sol";
 import {Resource} from "./resources/Resource.sol";
 import {Business} from "./buildings/Business.sol";
-import {RawResource} from "./resources/RawResource.sol";
 import {Item} from "./items/Item.sol";
 import {Food} from "./items/Food.sol";
 import {MaterialResource} from "./resources/MaterialResource.sol";
@@ -39,16 +38,17 @@ contract Galaxy is ReentrancyGuard {
     mapping(uint256 => Business) public business;
     mapping(address => uint256) public addressToBusinessId;
 
-    RawResource public rawResource;
-    Characters public characters;
-    GalaxyCosts public costs;
     string public name;
+    GalaxyCosts public costs;
+    Characters public immutable characters;
+    uint256 public immutable rawResourceId;
 
     constructor(
         string memory _name,
         GalaxyCosts memory _costs,
         address[] memory resourceAddresses,
-        address[] memory itemAddresses
+        address[] memory itemAddresses,
+        uint256 _rawResourceId
     ) {
         name = _name;
         characters = new Characters();
@@ -56,6 +56,10 @@ contract Galaxy is ReentrancyGuard {
 
         _addResources(resourceAddresses);
         _addItems(itemAddresses);
+
+        require(_rawResourceId > 0, "Invalid raw resource id");
+        require(address(resource[_rawResourceId]) != address(0), "Raw resource does not exists with given id");
+        rawResourceId = _rawResourceId;
     }
 
     function createPlanet(
@@ -134,8 +138,8 @@ contract Galaxy is ReentrancyGuard {
     ) public view returns (uint256) {
         uint256 movingTimeInSec = 1000;
         uint256 orbitDiff = calculateOrbitDiff(fromPlanetId, toPlanetId);
-        if (orbitDiff > 0) {
-            movingTimeInSec = orbitDiff;
+        if (orbitDiff == 0) {
+            return orbitDiff;
         }
 
         return ((block.timestamp + movingTimeInSec) / 1000) * 1000;
@@ -146,6 +150,10 @@ contract Galaxy is ReentrancyGuard {
     ) public pure returns (uint256) {
         return 100000; // TO DO
     }
+
+    receive() external payable { }
+
+    fallback() external payable { }
 
     function _addItems(address[] memory itemAddressess) private {
         for (uint256 i = 0; i < itemAddressess.length; i++) {

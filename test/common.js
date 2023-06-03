@@ -31,7 +31,12 @@ async function characterSign(
     return signatureData;
 }
 
+async function getCharacterNonce(characters, characterAddress) {
+    return (await characters.character(characterAddress)).nonce.toString();
+}
+
 module.exports = {
     getWeb3Provider,
     characterSign,
+    getCharacterNonce
 }

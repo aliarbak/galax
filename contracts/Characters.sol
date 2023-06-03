@@ -29,7 +29,7 @@ contract Characters is ReentrancyGuard {
     }
 
     enum PredefinedSkillType {
-        NONE,
+        RAW_PRODUCTION,
         COOKING,
         MANUFACTURING,
         MECHANIC
@@ -51,12 +51,14 @@ contract Characters is ReentrancyGuard {
     Galaxy public galaxy;
 
     constructor() {
-        galaxy = Galaxy(msg.sender);
+        galaxy = Galaxy(payable(msg.sender));
     }
 
     function produce(
         address characterAddress,
-        uint skill,
+        uint256 skill,
+        uint256 requiredSkillExp,
+        uint256 resourceId,
         MotiveEffect memory motiveEffect,
         bytes calldata signature
     ) external payable nonReentrant {
@@ -80,11 +82,16 @@ contract Characters is ReentrancyGuard {
             motiveEffect.thirstiness,
             motiveEffect.energy
         );
+
+        require(characterSkill[characterAddress][skill] >= requiredSkillExp, "Insufficent skill exp");
+
         _increaseNonce(characterAddress);
         characterSkill[characterAddress][skill]++;
         _character = character[characterAddress];
         emit Produced(
             characterAddress,
+            planetId,
+            resourceId,
             skill,
             characterSkill[characterAddress][skill],
             _character.hunger,
@@ -233,7 +240,7 @@ contract Characters is ReentrancyGuard {
         if (fromPlanetId > 0) {
             galaxy.planet(fromPlanetId).characterLeft();
         }
-        
+
         emit JoinedToPlanet(
             characterAddress,
             fromPlanetId,
@@ -280,7 +287,9 @@ contract Characters is ReentrancyGuard {
 
     event Produced(
         address characterAddress,
-        uint skill,
+        uint256 planetId,
+        uint256 resourceId,
+        uint256 skill,
         uint256 skillExp,
         uint256 hunger,
         uint256 thirstiness,

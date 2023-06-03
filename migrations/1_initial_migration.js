@@ -19,6 +19,6 @@ module.exports = async function (deployer) {
     await deployer.deploy(Food, 1, 10, "Galax Foods", "GXF", 2, 100);
     const foodItem = await Food.deployed();
 
-    await deployer.deploy(Galaxy, 'Galax Network', { planetCreation: 100000 }, [rawResource.address, foodsAndDrinksResource.address, fmcgResource.address, vehicleResource.address], [foodItem.address]);
+    await deployer.deploy(Galaxy, 'Galax Network', { planetCreation: 100000 }, [rawResource.address, foodsAndDrinksResource.address, fmcgResource.address, vehicleResource.address], [foodItem.address], 1);
     await Galaxy.deployed();
 }

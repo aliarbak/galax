@@ -57,7 +57,7 @@ contract MaterialResource is Resource {
             hunger,
             thirstiness,
             energy,
-            requiredSkill.skillFactor * amount,
+            amount / requiredSkill.skillFactor,
             requiredSkill.skillType
         );
     }

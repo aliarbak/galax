@@ -35,7 +35,7 @@ contract Business is Ownable {
         id = _id;
         name = _name;
         planetId = _planetId;
-        galaxy = Galaxy(msg.sender);
+        galaxy = Galaxy(payable(msg.sender));
         businessType = _businessType;
     }
 

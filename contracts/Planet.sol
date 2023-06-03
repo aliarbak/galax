@@ -10,14 +10,16 @@ import {Business} from "./buildings/Business.sol";
 import {Resource} from "./resources/Resource.sol";
 
 contract Planet is Ownable, ReentrancyGuard {
-    uint256 public id;
+    uint256 private immutable _rawResourceId;
+
+    uint256 public immutable id;
     uint256 public characterCount = 0;
     uint256 public businessCount = 0;
     string public name;
     string public baseUri;
 
-    Galaxy public galaxy;
-    Characters public characters;
+    Galaxy public immutable galaxy;
+    Characters public immutable characters;
 
     constructor(
         uint256 _id,
@@ -28,7 +30,8 @@ contract Planet is Ownable, ReentrancyGuard {
         id = _id;
         baseUri = _baseUri;
         name = _name;
-        galaxy = Galaxy(msg.sender);
+        galaxy = Galaxy(payable(msg.sender));
+        _rawResourceId = galaxy.rawResourceId();
         characters = _characters;
     }
 
@@ -38,7 +41,7 @@ contract Planet is Ownable, ReentrancyGuard {
         uint256 reward,
         bytes calldata signature
     ) external nonReentrant onlyOwner {
-        Resource resource = galaxy.rawResource();
+        Resource resource = galaxy.resource(_rawResourceId);
         Resource.ProductionCost memory cost = resource.calculateProductionCost(
             id,
             amount
@@ -48,21 +51,25 @@ contract Planet is Ownable, ReentrancyGuard {
             address(this).balance >= cost.price + reward,
             "Insufficient balance for production"
         );
-        characters.produce(
-            characterAddress,
-            uint256(cost.skillType),
-            Characters.MotiveEffect(cost.hunger, cost.thirstiness, cost.energy),
-            signature
-        );
 
-        resource.produceForPlanet(amount);
-        bool sent = payable(address(galaxy)).send(cost.price);
+        bool sent = payable(galaxy).send(cost.price);
         require(sent, "Failed to send the cost");
 
         if (reward > 0) {
             sent = characterAddress.send(reward);
             require(sent, "Failed to send reward");
         }
+
+        characters.produce(
+            characterAddress,
+            cost.skillType,
+            cost.skillExp,
+            _rawResourceId,
+            Characters.MotiveEffect(cost.hunger, cost.thirstiness, cost.energy),
+            signature
+        );
+
+        resource.produceForPlanet(amount);
     }
 
     function produceResourceOnBusiness(
@@ -80,7 +87,9 @@ contract Planet is Ownable, ReentrancyGuard {
         );
         characters.produce(
             characterAddress,
-            uint256(cost.skillType),
+            cost.skillType,
+            cost.skillExp,
+            resourceId,
             Characters.MotiveEffect(cost.hunger, cost.thirstiness, cost.energy),
             signature
         );
@@ -120,6 +129,10 @@ contract Planet is Ownable, ReentrancyGuard {
     function setBaseUri(string memory _baseUri) external onlyOwner {
         baseUri = _baseUri;
     }
+
+    receive() external payable { }
+
+    fallback() external payable { }
 
     modifier onlyGalaxy() {
         require(

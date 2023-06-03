@@ -13,8 +13,6 @@ import {Resource} from "./Resource.sol";
 import {Business} from "./../buildings/Business.sol";
 
 contract RawResource is Resource {
-    uint256 constant MAX_PRODUCTION_LIMIT = 1000;
-
     constructor(
         uint256 _id,
         string memory _name,
@@ -24,11 +22,11 @@ contract RawResource is Resource {
             _id,
             _name,
             _symbol,
-            100 ether,
+            1 ether,
             uint(Business.PredefinedBusinessType.NONE),
             new ResourceCost[](0),
             MotiveCost(1, 1, 1),
-            RequiredSkill(0, uint(Characters.PredefinedSkillType.NONE))
+            RequiredSkill(1000000, uint(Characters.PredefinedSkillType.RAW_PRODUCTION))
         )
     {}
 
@@ -47,11 +45,11 @@ contract RawResource is Resource {
             uint256 energy
         ) = _calculateProductionMotiveCosts(amount);
         cost = ProductionCost(
+            hunger * 100,
+            thirstiness * 100,
+            energy * 100,
             amount / 1000,
-            hunger,
-            thirstiness,
-            energy,
-            requiredSkill.skillFactor * amount,
+            amount / requiredSkill.skillFactor,
             requiredSkill.skillType
         );
     }
